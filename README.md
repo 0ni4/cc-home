@@ -1,45 +1,32 @@
 # ccdeck
 
-A desktop GUI to browse, search, and resume your Claude Code sessions.
-The name is **cc** (Claude Code) + **deck** (a deck of saved sessions / a cockpit).
+A desktop GUI to browse, search, and resume your Claude Code sessions —
+an alternative to opcode.
 
-Built as an alternative to opcode that also works behind a corporate LLM gateway:
-it wraps the `claude` CLI instead of calling the API directly, so whatever the CLI
-is already configured with (`ANTHROPIC_BASE_URL` and other gateway settings) is
-used as-is.
+It wraps the `claude` CLI instead of calling the API directly, so it works
+behind an external LLM gateway, inheriting whatever the CLI is configured with.
 
 ## Features
 
-- **Session browser** — reads `~/.claude/projects/**.jsonl` directly and shows a
-  project → session list (title, last prompt, git branch, PR link, tag).
-- **Transcript viewer** — renders history as Markdown. Tool calls and thinking are
-  collapsible. Large sessions load the last 200 items with load-earlier paging.
-- **Full-text search** — searches session content across all projects, with a
-  snippet and highlighted matches (fast via an `(mtime, size)` cache).
-- **Session stats** — aggregates token counts (input/output/cache-read), reply
-  count, models used, and web-tool calls (from the JSONL `usage`, in a single
-  pass). List rows also show a total token count.
-- **Auto-refresh** — lightweight polling detects changes under
-  `~/.claude/projects`, so the sidebar updates even when you run a session from
-  the CLI separately.
-- **Session actions** — from each session's `⋯` menu:
-  - **Rename** — set a custom title
-  - **Fork** — branch a conversation into a new session (copied with fresh UUIDs)
-  - **Tag** — set / clear a tag
-  - **Delete** — remove the session JSONL (with confirmation)
-- **Resume** — resume a selected session and keep chatting.
-- **New session** — start a fresh session in any working directory.
-- **Model selection** — pick a model when starting/resuming (blank = default),
-  for environments where the gateway exposes multiple models.
-- **Permission dialog** — in `default` mode, allow/deny each tool call in the GUI.
-- **Streaming** — live response streaming, interrupt (stop) support, and per-turn
-  cost display.
+- **Session browser** — project → session list read straight from
+  `~/.claude/projects` (title, last prompt, branch, PR link, tag).
+- **Transcript viewer** — Markdown history with collapsible tool calls and
+  thinking; paged loading for large sessions.
+- **Full-text search** — search across all sessions with highlighted snippets.
+- **Session stats** — token counts, models used, and reply count per session.
+- **Session actions** — rename, tag, fork, and delete from a per-session menu.
+- **Resume / new session** — resume a session or start a new one in any directory.
+- **Model selection** — choose a model when starting or resuming.
+- **Live chat** — streaming responses, interrupt, per-turn cost, and in-GUI
+  tool-permission prompts.
+- **Auto-refresh** — the sidebar updates when sessions change on disk (e.g. when
+  run from the CLI separately).
 
 ## Requirements
 
 - Windows + WebView2 (bundled with Windows 11)
 - Python 3.10+
-- Claude Code CLI already set up (including auth and any gateway settings)
+- Claude Code CLI already set up (authenticated)
 
 ## Setup
 
@@ -79,21 +66,15 @@ web/
 | GET | `/api/projects/{pid}/sessions` | list sessions |
 | GET | `/api/projects/{pid}/sessions/{sid}` | get transcript (`?before=&limit=`) |
 | GET | `/api/search?q=&limit=` | full-text search across all sessions |
-| GET | `/api/state` | lightweight change signature (polled for auto-refresh) |
+| GET | `/api/state` | change signature polled for auto-refresh |
 | POST | `/api/projects/{pid}/sessions/{sid}/rename` | `{title}` |
 | POST | `/api/projects/{pid}/sessions/{sid}/tag` | `{tag}` (empty clears) |
 | POST | `/api/projects/{pid}/sessions/{sid}/fork` | `{title?, upToMessageId?}` → `{newSessionId}` |
 | DELETE | `/api/projects/{pid}/sessions/{sid}` | delete a session |
 | WS | `/ws/chat` | live chat (new / resume) |
 
-- Chat runs through [claude-agent-sdk](https://pypi.org/project/claude-agent-sdk/)'s
-  `ClaudeSDKClient`, using `resume`, `can_use_tool` (the permission callback), and
-  `include_partial_messages` (streaming).
-- The SDK launches its bundled `claude` executable. To use an already-installed
-  CLI instead, set the `CLAUDE_CLI_PATH` environment variable
-  (e.g. `$env:CLAUDE_CLI_PATH = "$env:USERPROFILE\.local\bin\claude.exe"`).
-- Like normal Claude Code, it reads the user/project/local setting files
-  (`setting_sources`), so CLAUDE.md, MCP servers, and gateway settings all apply.
+The SDK launches its bundled `claude` executable; set `CLAUDE_CLI_PATH` to use an
+already-installed CLI instead.
 
 ## Notes
 
