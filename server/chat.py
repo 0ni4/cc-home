@@ -202,6 +202,9 @@ class ChatSession:
             "cwd": start.get("cwd") or None,
             "permission_mode": start.get("permissionMode") or "acceptEdits",
             "can_use_tool": self.can_use_tool,
+            # behave like the real Claude Code (tool guidance, language mirroring)
+            # rather than a raw agent, which otherwise sometimes replies in English
+            "system_prompt": {"type": "preset", "preset": "claude_code"},
             # read user/project settings (CLAUDE.md, MCP, etc.) like normal claude code
             "setting_sources": ["user", "project", "local"],
         }
