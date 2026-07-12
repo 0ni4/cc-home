@@ -44,6 +44,7 @@ function renderMarkdown(src) {
   html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
                       '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  html = renderTables(html);
   // bullet lists
   html = html.replace(/((?:^[-*] .*(?:\n|$))+)/gm, (m) => {
     const items = m.trim().split("\n").map(l => `<li>${l.replace(/^[-*] /, "")}</li>`).join("");
@@ -55,11 +56,44 @@ function renderMarkdown(src) {
   });
   // paragraphs (leave block elements as-is)
   html = html.split(/\n{2,}/).map(part => {
-    if (/^\s*<(h\d|ul|ol|pre)/.test(part)) return part;
+    if (/^\s*<(h\d|ul|ol|pre|table)/.test(part)) return part;
     return `<p>${part.replace(/\n/g, "<br>")}</p>`;
   }).join("\n");
   html = html.replace(new RegExp(FENCE + "(\\d+)" + FENCE, "g"), (_, i) => fences[+i]);
   return html;
+}
+
+// GitHub-style pipe tables: a header row, a |---|---| separator, then body rows.
+// Runs after inline formatting so cell contents keep their <code>/<strong>/<a>.
+function _tableCells(line) {
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+}
+function renderTables(html) {
+  const lines = html.split("\n");
+  const out = [];
+  let i = 0;
+  const rowRe = /^\s*\|(.+)\|\s*$/;
+  const sepRe = /^\s*\|(?:\s*:?-+:?\s*\|)+\s*$/;
+  while (i < lines.length) {
+    if (rowRe.test(lines[i]) && i + 1 < lines.length && sepRe.test(lines[i + 1])) {
+      const header = _tableCells(lines[i]);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && rowRe.test(lines[i]) && !sepRe.test(lines[i])) {
+        rows.push(_tableCells(lines[i]));
+        i++;
+      }
+      const thead = "<tr>" + header.map(c => `<th>${c}</th>`).join("") + "</tr>";
+      const tbody = rows.map(r =>
+        "<tr>" + header.map((_, k) => `<td>${r[k] || ""}</td>`).join("") + "</tr>"
+      ).join("");
+      out.push(`<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`);
+    } else {
+      out.push(lines[i]);
+      i++;
+    }
+  }
+  return out.join("\n");
 }
 
 function fmtTime(iso) {

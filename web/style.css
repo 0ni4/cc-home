@@ -211,6 +211,16 @@ body {
 }
 .msg-body pre code { background: none; padding: 0; }
 .msg-body a { color: var(--primary); }
+.msg-body table {
+  border-collapse: collapse; margin: 10px 0; font-size: 13px;
+  display: block; max-width: 100%; overflow-x: auto;
+}
+.msg-body th, .msg-body td {
+  border: 1px solid var(--border); padding: 5px 10px; text-align: left;
+  vertical-align: top;
+}
+.msg-body thead th { background: var(--bg3); font-weight: 600; }
+.msg-body tbody tr:nth-child(even) { background: rgba(255,255,255,.02); }
 
 .divider {
   max-width: 900px; margin: 16px auto; text-align: center;
