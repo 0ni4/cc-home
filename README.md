@@ -17,7 +17,9 @@ behind an external LLM gateway, inheriting whatever the CLI is configured with.
 - **Skills tab** — browse installed skills (personal + plugins); click one to run
   it (`/skill`) in a session, with the output shown in the transcript.
 - **MCP tab** — view and manage MCP servers per scope (global, per-directory
-  private, and shared `.mcp.json`); add and remove servers from the GUI.
+  private, and shared `.mcp.json`); add and remove servers from the GUI. It also
+  merges in what `claude mcp list` reports — health status and claude.ai account
+  connectors.
 - **Settings** (gear, bottom-left) — defaults for model, permission mode, send
   key, working directory, UI scale, and an optional Claude CLI path.
 - **Session actions** — rename, tag, fork, and delete from a per-session menu.

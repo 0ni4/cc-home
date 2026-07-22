@@ -92,6 +92,43 @@ def list_mcp(cwd: Optional[str] = None) -> dict[str, Any]:
     return result
 
 
+def list_cli(cwd: Optional[str] = None) -> list[dict[str, Any]]:
+    """Run `claude mcp list` and parse it. This is what Claude Code actually
+    sees — including claude.ai account connectors — with a health status.
+    Slower than reading the files (it health-checks servers)."""
+    proc = subprocess.run(
+        [_claude_cli(), "mcp", "list"],
+        cwd=cwd or None, capture_output=True, text=True, timeout=60,
+    )
+    servers: list[dict[str, Any]] = []
+    for line in (proc.stdout or "").splitlines():
+        line = line.strip()
+        if not line or line.lower().startswith("checking mcp"):
+            continue
+        name, sep, rest = line.partition(": ")
+        if not sep:
+            continue
+        target, dash, status_text = rest.rpartition(" - ")
+        if not dash:
+            target, status_text = rest, ""
+        low = status_text.lower()
+        if "auth" in low:
+            status = "needs-auth"
+        elif "fail" in low or "✗" in status_text:
+            status = "failed"
+        elif "connect" in low or "✓" in status_text:
+            status = "connected"
+        else:
+            status = "unknown"
+        servers.append({
+            "name": name.strip(),
+            "target": target.strip(),
+            "status": status,
+            "statusText": status_text.strip(),
+        })
+    return servers
+
+
 def _run_mcp(args: list[str], cwd: Optional[str] = None) -> None:
     proc = subprocess.run(
         [_claude_cli(), "mcp", *args],

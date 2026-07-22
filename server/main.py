@@ -95,6 +95,16 @@ def api_mcp_list(cwd: str = ""):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.get("/api/mcp/live")
+def api_mcp_live(cwd: str = ""):
+    """What `claude mcp list` reports (health + claude.ai connectors). Slow."""
+    try:
+        return {"servers": mcp.list_cli(cwd or None)}
+    except Exception as e:
+        log.exception("mcp live list failed")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 class AddMcpBody(BaseModel):
     name: str
     scope: str = "user"

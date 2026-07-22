@@ -105,6 +105,11 @@ body {
   overflow-wrap: anywhere;
 }
 .mcp-item .mcp-keys { font-size: 10px; color: var(--dim); margin-top: 2px; }
+.mcp-item .mcp-status { font-size: 10px; margin-left: 4px; white-space: nowrap; }
+.mcp-status.connected { color: var(--green); }
+.mcp-status.needs-auth { color: #d6a24a; }
+.mcp-status.failed { color: var(--danger); }
+.mcp-status.unknown { color: var(--dim); }
 .mcp-item .mcp-del {
   background: none; border: none; color: var(--dim); cursor: pointer;
   font-size: 14px; padding: 2px 4px; flex-shrink: 0;

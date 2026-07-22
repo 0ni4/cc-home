@@ -1056,6 +1056,8 @@ function skillMenuOpen() {
 // MCP servers
 
 let mcpData = { global: [], local: [], project: [] };
+let mcpLive = [];
+let mcpLiveState = "idle"; // idle | loading | done | error
 
 function onMcpTab() {
   if (!$("mcp-cwd").value) {
@@ -1069,18 +1071,39 @@ async function loadMcp() {
   const cwd = $("mcp-cwd").value.trim();
   const el = $("mcp-list");
   el.innerHTML = '<div class="mcp-empty">Loading…</div>';
+  mcpLive = [];
+  mcpLiveState = "idle";
   try {
     mcpData = await api("/api/mcp" + (cwd ? "?cwd=" + encodeURIComponent(cwd) : ""));
     renderMcp();
+    loadMcpLive();  // annotate with health + claude.ai connectors (slower)
   } catch (e) {
     el.innerHTML = '<div class="mcp-empty">Failed to load MCP config.</div>';
   }
+}
+
+async function loadMcpLive() {
+  const cwd = $("mcp-cwd").value.trim();
+  mcpLiveState = "loading";
+  renderMcp();
+  try {
+    const data = await api("/api/mcp/live" + (cwd ? "?cwd=" + encodeURIComponent(cwd) : ""));
+    mcpLive = data.servers || [];
+    mcpLiveState = "done";
+  } catch (e) {
+    mcpLiveState = "error";
+  }
+  renderMcp();
 }
 
 function renderMcp() {
   const el = $("mcp-list");
   el.innerHTML = "";
   const hasDir = !!$("mcp-cwd").value.trim();
+  const statusByName = {};
+  for (const s of mcpLive) statusByName[s.name] = s;
+  const fileNames = new Set();
+
   const groups = [
     ["Global — all projects", mcpData.global, "user", true],
     ["This directory — private", mcpData.local, "local", hasDir],
@@ -1098,24 +1121,62 @@ function renderMcp() {
       e.textContent = "No servers.";
       el.appendChild(e);
     } else {
-      for (const s of list) el.appendChild(mcpRow(s));
+      for (const s of list) {
+        fileNames.add(s.name);
+        el.appendChild(mcpRow(s, statusByName[s.name], true));
+      }
     }
+  }
+
+  // servers `claude mcp list` reports that aren't in local files (claude.ai connectors)
+  const extras = mcpLive.filter((s) => !fileNames.has(s.name));
+  if (extras.length) {
+    const head = document.createElement("div");
+    head.className = "mcp-group-head";
+    head.textContent = "From claude mcp list — managed on claude.ai";
+    el.appendChild(head);
+    for (const s of extras) {
+      el.appendChild(mcpRow({ name: s.name, target: s.target, transport: "remote" }, s, false));
+    }
+  }
+
+  if (mcpLiveState === "loading") {
+    const n = document.createElement("div");
+    n.className = "mcp-empty";
+    n.textContent = "Checking status via claude mcp list…";
+    el.appendChild(n);
+  } else if (mcpLiveState === "error") {
+    const n = document.createElement("div");
+    n.className = "mcp-empty";
+    n.textContent = "Could not run claude mcp list.";
+    el.appendChild(n);
   }
 }
 
-function mcpRow(s) {
+const MCP_STATUS_LABEL = {
+  connected: "● connected", "needs-auth": "● needs auth",
+  failed: "● failed", unknown: "● unknown",
+};
+
+function mcpRow(s, live, removable) {
   const div = document.createElement("div");
   div.className = "mcp-item";
   const keys = [];
   if (s.env && s.env.length) keys.push("env: " + s.env.join(", "));
   if (s.headers && s.headers.length) keys.push("headers: " + s.headers.join(", "));
+  let status = "";
+  if (live) {
+    status = ` <span class="mcp-status ${live.status}" title="${escapeHtml(live.statusText || "")}">` +
+             `${escapeHtml(MCP_STATUS_LABEL[live.status] || live.status)}</span>`;
+  }
   div.innerHTML =
     `<div class="mcp-main"><div class="mcp-name">${escapeHtml(s.name)} ` +
-    `<span class="badge">${escapeHtml(s.transport)}</span></div>` +
-    `<div class="mcp-target">${escapeHtml(s.target)}</div>` +
+    `<span class="badge">${escapeHtml(s.transport || "remote")}</span>${status}</div>` +
+    `<div class="mcp-target">${escapeHtml(s.target || "")}</div>` +
     (keys.length ? `<div class="mcp-keys">${escapeHtml(keys.join(" · "))}</div>` : "") +
-    "</div><button class=\"mcp-del\" title=\"Remove\">✕</button>";
-  div.querySelector(".mcp-del").onclick = () => removeMcp(s);
+    "</div>" +
+    (removable ? "<button class=\"mcp-del\" title=\"Remove\">✕</button>" : "");
+  if (removable) div.querySelector(".mcp-del").onclick = () => removeMcp(s);
   return div;
 }
 
