@@ -295,7 +295,24 @@ details.thinking .code-box { color: #9aa0b5; font-style: italic; }
 @keyframes pulse { 50% { opacity: .35; } }
 #chat-cost { margin-left: auto; }
 
-#composer { display: flex; gap: 10px; padding: 0 18px 14px; }
+#composer { display: flex; gap: 10px; padding: 0 18px 14px; position: relative; }
+
+/* slash-command skill autocomplete above the composer */
+#skill-menu {
+  position: absolute; bottom: calc(100% + 6px); left: 18px; right: 70px;
+  max-height: 300px; overflow-y: auto; z-index: 60;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 -6px 26px rgba(0,0,0,.5);
+}
+.smi { padding: 7px 12px; cursor: pointer; border-bottom: 1px solid rgba(46,50,61,.5); }
+.smi:last-child { border-bottom: none; }
+.smi.active, .smi:hover { background: var(--bg3); }
+.smi .smi-cmd { font-family: var(--mono); font-size: 13px; color: var(--green); }
+.smi .smi-src { font-size: 10px; margin-left: 6px; }
+.smi .smi-desc {
+  font-size: 11px; color: var(--dim); margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
 #chat-input {
   flex: 1; resize: none;
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;

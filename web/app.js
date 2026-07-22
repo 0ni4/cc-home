@@ -358,11 +358,6 @@ function handleChatEvent(e) {
   switch (e.event) {
     case "ready":
       setChatStatus("Connected — you can send a message", "on");
-      if (pendingSkillCommand) {
-        const cmd = pendingSkillCommand;
-        pendingSkillCommand = null;
-        runSkillCommand(cmd);
-      }
       break;
     case "init":
       state.liveSessionId = e.sessionId || "";
@@ -507,11 +502,30 @@ $("session-filter").oninput = renderSessionList;
 
 $("btn-send").onclick = sendUserMessage;
 $("chat-input").addEventListener("keydown", (ev) => {
+  if (skillMenuOpen()) {
+    if (ev.key === "ArrowDown") {
+      ev.preventDefault();
+      skillMenuIdx = (skillMenuIdx + 1) % skillMenuItems.length;
+      renderSkillMenu();
+      return;
+    }
+    if (ev.key === "ArrowUp") {
+      ev.preventDefault();
+      skillMenuIdx = (skillMenuIdx - 1 + skillMenuItems.length) % skillMenuItems.length;
+      renderSkillMenu();
+      return;
+    }
+    if (ev.key === "Enter") { ev.preventDefault(); acceptSkill(skillMenuIdx, true); return; }
+    if (ev.key === "Tab") { ev.preventDefault(); acceptSkill(skillMenuIdx, false); return; }
+    if (ev.key === "Escape") { ev.preventDefault(); hideSkillMenu(); return; }
+  }
   if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) {
     ev.preventDefault();
     sendUserMessage();
   }
 });
+$("chat-input").addEventListener("input", updateSkillMenu);
+$("chat-input").addEventListener("blur", () => setTimeout(hideSkillMenu, 120));
 $("btn-interrupt").onclick = () => {
   if (state.ws) state.ws.send(JSON.stringify({ type: "interrupt" }));
 };
@@ -519,15 +533,13 @@ $("btn-disconnect").onclick = disconnectChat;
 
 // new session
 $("btn-new-session").onclick = () => {
-  if (state.currentSession && state.currentSession.cwd) {
-    $("new-cwd").value = state.currentSession.cwd;
-  }
+  const def = (state.currentSession && state.currentSession.cwd) ||
+              (state.projects[0] && state.projects[0].path) || "";
+  if (def) $("new-cwd").value = def;
   $("modal-new").classList.remove("hidden");
+  $("new-cwd").focus();
 };
-$("btn-new-cancel").onclick = () => {
-  pendingSkillCommand = null;
-  $("modal-new").classList.add("hidden");
-};
+$("btn-new-cancel").onclick = () => $("modal-new").classList.add("hidden");
 $("btn-new-start").onclick = () => {
   const cwd = $("new-cwd").value.trim();
   if (!cwd) { $("new-cwd").focus(); return; }
@@ -921,30 +933,102 @@ function renderSkills() {
 }
 $("skill-search").oninput = renderSkills;
 
-let pendingSkillCommand = null;
+function chatLive() {
+  return state.ws && state.ws.readyState === WebSocket.OPEN;
+}
 
-// Send text as a chat message by reusing the composer send path.
-function runSkillCommand(cmd) {
+// Put a command into the composer (and send it) via the normal send path.
+function sendCommand(cmd) {
   $("chat-input").value = cmd;
   sendUserMessage();
 }
 
+// Clicking a skill in the Skills tab: run it in the live session, or nudge the
+// user to open one (the casual path is typing / in the message box).
 function runSkill(skill) {
-  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-    // a live session is connected — run the skill in it
-    runSkillCommand(skill.command);
+  if (chatLive()) {
+    sendCommand(skill.command);
     return;
   }
-  // no live session — start a new one, then auto-send the skill command
-  pendingSkillCommand = skill.command;
-  if (state.currentSession && state.currentSession.cwd) {
-    $("new-cwd").value = state.currentSession.cwd;
+  $("chat-input").value = skill.command;
+  toast("Start or resume a session, then type / in the message box to run skills", true);
+}
+
+// ---------------------------------------------------------------------------
+// slash-command autocomplete in the composer (type / to pick a skill)
+
+const skillMenu = $("skill-menu");
+let skillMenuItems = [];
+let skillMenuIdx = -1;
+
+function currentSlashToken() {
+  const el = $("chat-input");
+  const val = el.value;
+  // only when the whole input is a single /token (no spaces yet)
+  const m = /^\/(\S*)$/.exec(val.trim());
+  return m ? "/" + m[1] : null;
+}
+
+function updateSkillMenu() {
+  const token = currentSlashToken();
+  if (token === null) { hideSkillMenu(); return; }
+  const q = token.slice(1).toLowerCase();
+  // match on the command name (what the user is typing after /), not descriptions
+  const matches = skillsData
+    .filter((s) => s.command.toLowerCase().includes(q))
+    .sort((a, b) => {
+      // prefix matches first, then alphabetical
+      const ap = a.command.toLowerCase().indexOf(q);
+      const bp = b.command.toLowerCase().indexOf(q);
+      return ap - bp || a.command.localeCompare(b.command);
+    })
+    .slice(0, 12);
+  if (matches.length === 0) { hideSkillMenu(); return; }
+  skillMenuItems = matches;
+  skillMenuIdx = 0;
+  renderSkillMenu();
+  skillMenu.classList.remove("hidden");
+}
+
+function renderSkillMenu() {
+  skillMenu.innerHTML = "";
+  skillMenuItems.forEach((s, i) => {
+    const div = document.createElement("div");
+    div.className = "smi" + (i === skillMenuIdx ? " active" : "");
+    div.innerHTML =
+      `<div><span class="smi-cmd">${escapeHtml(s.command)}</span>` +
+      `<span class="badge smi-src">${escapeHtml(s.source)}</span></div>` +
+      (s.description ? `<div class="smi-desc">${escapeHtml(s.description)}</div>` : "");
+    div.onmousedown = (ev) => { ev.preventDefault(); acceptSkill(i, true); };
+    skillMenu.appendChild(div);
+  });
+}
+
+function hideSkillMenu() {
+  skillMenu.classList.add("hidden");
+  skillMenuItems = [];
+  skillMenuIdx = -1;
+}
+
+// accept a suggestion: send=true runs it now, send=false just fills for args
+function acceptSkill(idx, send) {
+  const s = skillMenuItems[idx];
+  if (!s) return;
+  hideSkillMenu();
+  if (send) {
+    sendCommand(s.command);
+  } else {
+    $("chat-input").value = s.command + " ";
+    $("chat-input").focus();
   }
-  $("modal-new").classList.remove("hidden");
-  $("new-cwd").focus();
+}
+
+function skillMenuOpen() {
+  return !skillMenu.classList.contains("hidden") && skillMenuItems.length > 0;
 }
 
 // init
+if (!skillsLoaded) loadSkills();  // preload so / autocomplete works right away
 loadProjects().then(() => {
   if (state.projects.length > 0) selectProject(state.projects[0].projectId);
 });
