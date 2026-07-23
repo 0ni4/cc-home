@@ -175,6 +175,7 @@ class ChatSession:
                 data = getattr(msg, "data", {}) or {}
                 self.session_id = data.get("session_id", "") or self.session_id
                 skills = data.get("skills")
+                mcp_servers = data.get("mcp_servers")
                 await self.send({
                     "event": "init",
                     "sessionId": self.session_id,
@@ -183,6 +184,9 @@ class ChatSession:
                     # names of skills actually available in this session (the
                     # ones that /name can invoke) — used by the Skills UI
                     "skills": skills if isinstance(skills, list) else [],
+                    # MCP servers actually loaded in this session, with connect
+                    # status — /mcp doesn't work over the SDK, so surface it here
+                    "mcpServers": mcp_servers if isinstance(mcp_servers, list) else [],
                 })
         elif StreamEvent is not None and isinstance(msg, StreamEvent):
             ev = getattr(msg, "event", {}) or {}

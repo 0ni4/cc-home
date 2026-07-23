@@ -369,6 +369,7 @@ function handleChatEvent(e) {
         loadSkills();          // ensure the description map is loaded
         rebuildSkillItems();   // now / autocomplete + Skills tab reflect this session
       }
+      addMcpInfoLine(e.mcpServers);
       break;
     case "delta": {
       const b = ensureStreamBubble();
@@ -1054,6 +1055,20 @@ function skillMenuOpen() {
 
 // ---------------------------------------------------------------------------
 // MCP servers
+
+// /mcp doesn't work over the SDK session, so show what actually loaded instead.
+function addMcpInfoLine(servers) {
+  if (!Array.isArray(servers) || servers.length === 0) return;
+  const parts = servers.map((s) => {
+    const st = s.status ? ` (${escapeHtml(s.status)})` : "";
+    return `<span class="mcp-status ${escapeHtml(s.status || "unknown")}">${escapeHtml(s.name)}</span>${st}`;
+  });
+  const div = document.createElement("div");
+  div.className = "divider mcp-info-line";
+  div.innerHTML = "🔌 MCP loaded: " + parts.join(", ");
+  $("transcript").appendChild(div);
+  $("transcript").scrollTop = $("transcript").scrollHeight;
+}
 
 let mcpData = { global: [], local: [], project: [] };
 let mcpLive = [];
