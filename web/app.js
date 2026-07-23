@@ -1233,6 +1233,22 @@ $("btn-new-mcp").onclick = () => {
 };
 $("btn-mcp-cancel").onclick = () => $("modal-mcp").classList.add("hidden");
 
+// authenticate (OAuth) an MCP server by opening a real terminal for /mcp
+$("btn-mcp-auth").onclick = () => {
+  $("mcp-auth-cwd").value = $("mcp-cwd").value.trim();
+  $("modal-mcp-auth").classList.remove("hidden");
+};
+$("btn-mcp-auth-cancel").onclick = () => $("modal-mcp-auth").classList.add("hidden");
+$("btn-mcp-auth-open").onclick = async () => {
+  try {
+    await apiPost("/api/mcp/auth-terminal", { cwd: $("mcp-auth-cwd").value.trim() });
+    $("modal-mcp-auth").classList.add("hidden");
+    toast("Terminal opened — type /mcp there, finish the login, then start a new session");
+  } catch (e) {
+    toast("Couldn't open terminal: " + e.message, true);
+  }
+};
+
 function parseLines(text) {
   return text.split("\n").map((l) => l.trim()).filter(Boolean);
 }

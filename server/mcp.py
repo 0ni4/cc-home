@@ -92,13 +92,18 @@ def list_mcp(cwd: Optional[str] = None) -> dict[str, Any]:
     return result
 
 
+def _safe_cwd(cwd: Optional[str]) -> Optional[str]:
+    """A real directory, or None — subprocess.run raises on a bad cwd."""
+    return cwd if (cwd and os.path.isdir(cwd)) else None
+
+
 def list_cli(cwd: Optional[str] = None) -> list[dict[str, Any]]:
     """Run `claude mcp list` and parse it. This is what Claude Code actually
     sees — including claude.ai account connectors — with a health status.
     Slower than reading the files (it health-checks servers)."""
     proc = subprocess.run(
         [_claude_cli(), "mcp", "list"],
-        cwd=cwd or None, capture_output=True, text=True, timeout=60,
+        cwd=_safe_cwd(cwd), capture_output=True, text=True, timeout=60,
     )
     servers: list[dict[str, Any]] = []
     for line in (proc.stdout or "").splitlines():
@@ -130,6 +135,8 @@ def list_cli(cwd: Optional[str] = None) -> list[dict[str, Any]]:
 
 
 def _run_mcp(args: list[str], cwd: Optional[str] = None) -> None:
+    if cwd and not os.path.isdir(cwd):
+        raise ValueError(f"Directory not found: {cwd}")
     proc = subprocess.run(
         [_claude_cli(), "mcp", *args],
         cwd=cwd or None, capture_output=True, text=True, timeout=45,
@@ -169,6 +176,32 @@ def add_mcp(name: str, scope: str, transport: str, command: str, args: list[str]
 
     _run_mcp(["add-json", name, json.dumps(config), "-s", scope], cwd=cwd)
     return {"name": name, "scope": scope}
+
+
+def open_auth_terminal(cwd: Optional[str] = None) -> dict[str, Any]:
+    """Open a real terminal in `cwd` running the claude CLI, so the user can run
+    /mcp and complete the interactive OAuth login — which the SDK-driven session
+    can't do. Windows only."""
+    if os.name != "nt":
+        raise RuntimeError("Opening a terminal is only supported on Windows.")
+    cli = _claude_cli()
+    if not os.path.splitext(cli)[1] and os.path.exists(cli + ".exe"):
+        cli += ".exe"
+    workdir = cwd or str(Path.home())
+    cli_ps = cli.replace("'", "''")
+    inner = (
+        "Write-Host 'cc-home: type  /mcp  to authenticate your MCP servers, "
+        "finish the browser login, then close this window and start a new "
+        "session in cc-home.' -ForegroundColor Cyan; "
+        f"& '{cli_ps}'"
+    )
+    create_new_console = 0x00000010  # CREATE_NEW_CONSOLE (kept visible by our patch)
+    subprocess.Popen(
+        ["powershell", "-NoExit", "-NoProfile", "-Command", inner],
+        cwd=workdir if os.path.isdir(workdir) else None,
+        creationflags=create_new_console,
+    )
+    return {"ok": True, "cwd": workdir}
 
 
 def remove_mcp(name: str, scope: str, cwd: Optional[str] = None) -> dict[str, Any]:

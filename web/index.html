@@ -58,6 +58,7 @@
         <button id="btn-mcp-load" class="btn small">Load</button>
       </div>
       <div class="skills-toolbar">
+        <button id="btn-mcp-auth" class="btn small">🔑 Authenticate…</button>
         <button id="btn-new-mcp" class="btn small">+ Add server</button>
       </div>
       <div id="mcp-list" class="scroll-area"></div>
@@ -233,6 +234,28 @@
     <div class="modal-actions">
       <button id="btn-settings-cancel" class="btn">Cancel</button>
       <button id="btn-settings-save" class="btn primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MCP authenticate guide modal -->
+<div id="modal-mcp-auth" class="modal-backdrop hidden">
+  <div class="modal">
+    <h2>Authenticate an MCP server</h2>
+    <p class="modal-note">Servers that use OAuth login (shown as <b>needs auth</b>)
+      can't be authenticated inside cc-home — the browser login needs a real
+      terminal. It's a one-time step; afterwards the server works here.</p>
+    <ol class="modal-steps">
+      <li>Click <b>Open terminal</b> — it launches <code>claude</code> in the directory below.</li>
+      <li>In the terminal, type <code>/mcp</code> and press Enter.</li>
+      <li>Pick the server and finish the browser login.</li>
+      <li>Close the terminal, then start a <b>new session</b> in cc-home.</li>
+    </ol>
+    <label>Directory</label>
+    <input id="mcp-auth-cwd" type="text" placeholder="C:\path\to\project" autocomplete="off">
+    <div class="modal-actions">
+      <button id="btn-mcp-auth-cancel" class="btn">Cancel</button>
+      <button id="btn-mcp-auth-open" class="btn primary">Open terminal</button>
     </div>
   </div>
 </div>

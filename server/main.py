@@ -135,6 +135,19 @@ class RemoveMcpBody(BaseModel):
     cwd: str = ""
 
 
+class AuthTerminalBody(BaseModel):
+    cwd: str = ""
+
+
+@app.post("/api/mcp/auth-terminal")
+def api_mcp_auth_terminal(body: AuthTerminalBody):
+    try:
+        return mcp.open_auth_terminal(body.cwd or None)
+    except Exception as e:
+        log.exception("open auth terminal failed")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/api/mcp/remove")
 def api_mcp_remove(body: RemoveMcpBody):
     try:

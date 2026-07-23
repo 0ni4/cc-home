@@ -83,9 +83,14 @@ def _suppress_child_console_windows() -> None:
     if getattr(orig_init, "_cchome_patched", False):
         return
     create_no_window = 0x08000000  # CREATE_NO_WINDOW
+    create_new_console = 0x00000010  # CREATE_NEW_CONSOLE — a terminal the caller wants
 
     def patched_init(self, *args, **kwargs):
-        kwargs["creationflags"] = kwargs.get("creationflags", 0) | create_no_window
+        flags = kwargs.get("creationflags", 0)
+        # only hide children that didn't explicitly ask for their own console
+        if not (flags & create_new_console):
+            flags |= create_no_window
+        kwargs["creationflags"] = flags
         orig_init(self, *args, **kwargs)
 
     patched_init._cchome_patched = True
